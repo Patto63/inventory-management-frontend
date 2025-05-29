@@ -2,9 +2,9 @@ name: CI - Next.js Frontend
 
 on:
   push:
-    branches: [main, develop, feature/*]
+    branches: [main, develop, deploy]
   pull_request:
-    branches: [main, devevelop, feature/*]
+    branches: [main, develop, deploy]
 
 jobs:
   build-and-test:
@@ -23,8 +23,8 @@ jobs:
       - name: 📦 Install dependencies (legacy peer deps)
         run: npm install --legacy-peer-deps
 
-    #  - name: 💅 Auto format with Prettier
-    #    run: npm run format:fix
+      #  - name: 💅 Auto format with Prettier
+      #    run: npm run format:fix
 
       - name: ✅ Lint check (ESLint)
         run: npm run lint

@@ -1,59 +1,141 @@
-import { User, PaginatedUsers, ApiResponse } from '../data/interfaces/user.interface'
+import { IUser, PaginatedResponse, ApiResponse, PersonApiResponse } from '@/features/users/data/interfaces/user.interface';
+import { HttpHandler, IHttpResponse } from '@/core/data/interfaces/HttpHandler';
+import { AxiosClient } from '@/core/infrestucture/AxiosClient';
 
-const BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}users`
+interface UserServiceProps {
+  getUsers: (page?: number, limit?: number, filters?: { userName?: string; dni?: string; status?: string }) => Promise<PaginatedResponse>;
+  getUserById: (id: string) => Promise<IUser>;
+  createUser: (user: Partial<IUser>) => Promise<IUser>;
+  updateUser: (id: string, user: Partial<IUser>) => Promise<IUser>;
+  deleteUser: (id: string) => Promise<void>;
+  getPersonByDni: (dni: string) => Promise<PersonApiResponse["data"] | null>;
+}
 
-function getHeaders() {
-  const token = localStorage.getItem('token')
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
+export class UserService implements UserServiceProps {
+  private static instance: UserService;
+  private httpClient: HttpHandler;
+  private static readonly url = `${process.env.NEXT_PUBLIC_API_URL}users`;
+
+  private constructor() {
+    this.httpClient = AxiosClient.getInstance();
   }
-}
 
-export async function fetchUsers(page = 1, limit = 10): Promise<PaginatedUsers> {
-  const res = await fetch(`${BASE_URL}?page=${page}&limit=${limit}`, {
-    headers: getHeaders(),
-  })
-  if (!res.ok) throw new Error('Error fetching users')
-  const json: ApiResponse<PaginatedUsers> = await res.json()
-  return json.data
-}
+  public static getInstance(): UserService {
+    if (!UserService.instance) {
+      UserService.instance = new UserService();
+    }
+    return UserService.instance;
+  }
 
-export async function fetchUserById(id: string): Promise<User> {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    headers: getHeaders(),
-  })
-  if (!res.ok) throw new Error('Error fetching user')
-  const json: ApiResponse<User> = await res.json()
-  return json.data
-}
+  async getUsers(page = 1, limit = 10, filters?: { userName?: string; dni?: string; status?: string }): Promise<PaginatedResponse> {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
 
-export async function createUser(data: Partial<User>): Promise<User> {
-  const res = await fetch(`${BASE_URL}`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error('Error creating user')
-  const json: ApiResponse<User> = await res.json()
-  return json.data
-}
+      if (filters?.userName) {
+        params.append('userName', filters.userName);
+      }
 
-export async function updateUser(id: string, data: Partial<User>): Promise<User> {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    method: 'PATCH',
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error('Error updating user')
-  const json: ApiResponse<User> = await res.json()
-  return json.data
-}
-export async function changeUserStatus(id: string, status: 'ACTIVE' | 'INACTIVE'): Promise<void> {
-  const res = await fetch(`${BASE_URL}/change-status/${id}`, {
-    method: 'PATCH',
-    headers: getHeaders(),
-    body: JSON.stringify({ status }),
-  })
-  if (!res.ok) throw new Error('Error changing user status')
+      if (filters?.dni) {
+        params.append('dni', filters.dni);
+      }
+
+      if (filters?.status) {
+        params.append('status', filters.status);
+      }
+
+      const response = await this.httpClient.get<PaginatedResponse>(`${UserService.url}?${params.toString()}`);
+      if (!response.success) {
+        throw new Error(response.message.content.join(', '));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  async getUserById(id: string): Promise<IUser> {
+    try {
+      const response = await this.httpClient.get<IUser>(`${UserService.url}/${id}`);
+      if (!response.success) {
+        throw new Error(response.message.content.join(', '));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      throw error;
+    }
+  }
+
+  async createUser(user: Partial<IUser>): Promise<IUser> {
+    try {
+      const userData = {
+        userName: user.userName,
+        password: user.password,
+        career: user.career,
+        userType: user.userType,
+        status: user.status || 'ACTIVE',
+        person: user.person
+      };
+
+      const response = await this.httpClient.post<IUser>(UserService.url, userData);
+      if (!response.success) {
+        throw new Error(response.message.content.join(', '));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  }
+
+  async updateUser(id: string, user: Partial<IUser>): Promise<IUser> {
+    try {
+      const userData = {
+        userName: user.userName,
+        password: user.password,
+        career: user.career,
+        userType: user.userType,
+        status: user.status || 'ACTIVE',
+        person: user.person
+      };
+
+      const response = await this.httpClient.patch<IUser>(`${UserService.url}/${id}`, userData);
+      if (!response.success) {
+        throw new Error(response.message.content.join(', '));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    try {
+      const response = await this.httpClient.patch<void>(`${UserService.url}/change-status/${id}`, { status: 'INACTIVE' });
+      if (!response.success) {
+        throw new Error(response.message.content.join(', '));
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
+  }
+
+  async getPersonByDni(dni: string): Promise<PersonApiResponse["data"] | null> {
+    try {
+      const response = await this.httpClient.get<PersonApiResponse["data"]>(`${process.env.NEXT_PUBLIC_API_URL}people/find-or-create/${dni}`);
+      if (!response.success) {
+        return null;
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching person by DNI:', error);
+      return null;
+    }
+  }
 }

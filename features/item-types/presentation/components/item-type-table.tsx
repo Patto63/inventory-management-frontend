@@ -6,14 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { useItemTypeStore } from '../../context/item-types-store';
+import LoaderComponent from '@/shared/components/ui/Loader';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbSeparator, BreadcrumbList, BreadcrumbPage, BreadcrumbLink } from '@/components/ui/breadcrumb';
+import { Input } from '@/components/ui/input';
 
 export default function ItemTypeTable() {
     const router = useRouter();
     const {
         itemTypes,
+        filteredItemTypes,
+        searchTerm,
+        setSearchTerm,
         loading,
         getItemTypes,
         deleteItemType,
@@ -63,20 +69,57 @@ export default function ItemTypeTable() {
     };
 
     if (loading) {
-        return <div>Cargando...</div>;
+        return (
+            <div className="container mx-auto py-10">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-2xl font-bold">Tipos de Item</CardTitle>
+                        <Button onClick={() => router.push('/item-types/new')}>
+                            <Plus className="mr-2 h-4 w-4" /> Nuevo Tipo
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        <LoaderComponent rows={5} columns={5} />
+                    </CardContent>
+                </Card>
+            </div>
+        );
     }
 
     return (
         <div className="container mx-auto py-10">
+            {/* Breadcrumbs, título y descripción */}
+            <div className="w-full">
+                <Breadcrumb className="mb-6">
+                    <BreadcrumbList>
+                        <BreadcrumbItem>
+                            <span className="text-muted-foreground font-medium">Configuración</span>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <Wrench className="inline mr-1 h-4 w-4 text-primary align-middle" />
+                            <BreadcrumbLink href="/item-types">Tipos de Item</BreadcrumbLink>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
+            </div>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-2xl font-bold">Tipos de Item</CardTitle>
                     <Button onClick={() => router.push('/item-types/new')}>
                         <Plus className="mr-2 h-4 w-4" /> Nuevo Tipo
                     </Button>
+
                 </CardHeader>
                 <CardContent>
+                    <Input
+                        placeholder="Buscar por nombre o descripción..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="mb-4 w-full md:w-1/3"
+                    />
                     <Table>
+
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Código</TableHead>
@@ -87,7 +130,7 @@ export default function ItemTypeTable() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {itemTypes.map((itemType) => (
+                            {filteredItemTypes.map((itemType) => (
                                 <TableRow key={itemType.id}>
                                     <TableCell className="font-medium">{itemType.code}</TableCell>
                                     <TableCell>{itemType.name}</TableCell>

@@ -1,7 +1,16 @@
-import dynamic from 'next/dynamic'
+'use client';
 
-const UsersView = dynamic(() => import('@/features/users/presentation/views/users-view'))
+import { Suspense } from 'react';
+import UserView from '@/features/users/presentation/views/user-view';
 
-export default function Page() {
-    return <UsersView />
+function UsersContent() {
+    return <UserView />;
+}
+
+export default function UsersPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <UsersContent />
+        </Suspense>
+    );
 }

@@ -1,4 +1,3 @@
-/* eslint-disable react/react-in-jsx-scope */
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -22,15 +21,26 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useConditionStore } from '@/features/conditions/context/condition-store';
 import { toast } from "sonner";
 import { ConditionPagination } from './condition-pagination';
+import LoaderComponent from '@/shared/components/ui/Loader';
 
 export default function ConditionTable() {
     const router = useRouter();
-    const [conditionToDelete, setConditionToDelete] = useState<string | null>(null);
-    const { conditions, loading, error, getConditions, deleteCondition, currentPage, totalPages } = useConditionStore();
+    const {
+        conditions,
+        filteredConditions,
+        searchTerm,
+        setSearchTerm,
+        loading,
+        getConditions,
+        deleteCondition,
+        currentPage,
+        totalPages
+    } = useConditionStore();
+
     const itemsPerPage = 10;
 
     useEffect(() => {
@@ -74,6 +84,8 @@ export default function ConditionTable() {
                         <Input
                             placeholder="Buscar por nombre..."
                             className="w-full md:w-64"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
 
@@ -102,11 +114,11 @@ export default function ConditionTable() {
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-center">
-                                        Cargando...
+                                    <TableCell colSpan={4}>
+                                        <LoaderComponent rows={5} columns={4} />
                                     </TableCell>
                                 </TableRow>
-                            ) : conditions.length === 0 ? (
+                            ) : filteredConditions.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={4} className="py-20 text-center text-muted-foreground">
                                         <div className="flex flex-col items-center gap-2">
@@ -116,7 +128,7 @@ export default function ConditionTable() {
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                conditions.map((condition) => (
+                                filteredConditions.map((condition) => (
                                     <TableRow key={condition.id}>
                                         <TableCell>{condition.name}</TableCell>
                                         <TableCell>{condition.description}</TableCell>
@@ -164,7 +176,7 @@ export default function ConditionTable() {
                             )}
                         </TableBody>
                     </Table>
-                    {!loading && conditions.length > 0 && (
+                    {!loading && filteredConditions.length > 0 && (
                         <div className="mt-4">
                             <ConditionPagination
                                 currentPage={currentPage}
@@ -177,4 +189,4 @@ export default function ConditionTable() {
             </CardContent>
         </Card>
     );
-} 
+}

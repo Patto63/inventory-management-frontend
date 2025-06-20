@@ -1,6 +1,7 @@
-import { InventoryView } from '@/features/inventory/presentation/views/inventory-view'
-import React from 'react'
+'use client';
 
-export default function login() {
-  return <InventoryView />
-}
+import { InventoryView } from "@/features/inventory/presentation/views/inventory-view";
+
+export default function InventoryPage() {
+  return <InventoryView />;
+} 

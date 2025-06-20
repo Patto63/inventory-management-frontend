@@ -1,288 +1,209 @@
 import { create } from 'zustand';
-import { InventoryItem, ProductStatus, InventoryFilters, ProductCategory, Department } from '../data/interfaces/inventory.interface';
-import { getInventoryItems, updateInventoryItem, deleteInventoryItem } from '../services/inventory.service';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { InventoryItem, PaginatedInventoryResponse } from '../data/interfaces/inventory.interface';
+import { InventoryService } from '../services/inventory.service';
+import { IHttpResponse } from '@/core/data/interfaces/HttpHandler';
 
-// Mapeo de statusId a ProductStatus
-const mapStatusIdToProductStatus = (statusId: number): ProductStatus => {
-  const statusMap: { [key: number]: ProductStatus } = {
-    1: ProductStatus.AVAILABLE,
-    2: ProductStatus.IN_USE,
-    3: ProductStatus.MAINTENANCE,
-    4: ProductStatus.DAMAGED,
-  };
-  return statusMap[statusId] || ProductStatus.DAMAGED;
-};
-
-// Mapeo de ProductStatus a statusId
-const mapProductStatusToStatusId = (status: ProductStatus): number => {
-  const statusMap: { [key in ProductStatus]: number } = {
-    [ProductStatus.AVAILABLE]: 1,
-    [ProductStatus.IN_USE]: 2,
-    [ProductStatus.MAINTENANCE]: 3,
-    [ProductStatus.DAMAGED]: 4,
-  };
-  return statusMap[status];
-};
-
-// Mapeo de categoryId a nombres de categorías
-const mapCategoryIdToName = (categoryId: number): string => {
-  const categoryMap: { [key: number]: ProductCategory } = {
-    1: ProductCategory.TECHNOLOGY,
-    2: ProductCategory.ELECTRONICS,
-    3: ProductCategory.FURNITURE,
-    4: ProductCategory.TOOLS,
-  };
-  return categoryMap[categoryId] || ProductCategory.OTHER;
-};
-
-// Mapeo de categoría a categoryId
-const mapCategoryToCategoryId = (category: string): number => {
-  const categoryMap: { [key in ProductCategory]: number } = {
-    [ProductCategory.TECHNOLOGY]: 1,
-    [ProductCategory.ELECTRONICS]: 2,
-    [ProductCategory.FURNITURE]: 3,
-    [ProductCategory.TOOLS]: 4,
-    [ProductCategory.MATERIALS]: 0,
-    [ProductCategory.OTHER]: 0,
-  };
-  return categoryMap[category as ProductCategory] || 0;
-};
-
-// Mapeo de locationId a nombres de departamentos
-const mapLocationIdToDepartment = (locationId: number): string => {
-  const locationMap: { [key: number]: Department } = {
-    1: Department.COMPUTING,
-    2: Department.ELECTRONICS,
-    3: Department.DESIGN,
-    4: Department.MECHANICS,
-  };
-  return locationMap[locationId] || Department.GENERAL;
-};
-
-// Mapeo de departamento a locationId
-const mapDepartmentToLocationId = (department: string): number => {
-  const departmentMap: { [key in Department]: number } = {
-    [Department.COMPUTING]: 1,
-    [Department.ELECTRONICS]: 2,
-    [Department.DESIGN]: 3,
-    [Department.MECHANICS]: 4,
-    [Department.GENERAL]: 0,
-  };
-  return departmentMap[department as Department] || 0;
-};
-
-// Mapea un ítem del backend a InventoryItem
-const mapBackendItemToInventoryItem = (record: any): InventoryItem => ({
-  id: record.id,
-  name: record.name,
-  description: record.description || 'Sin descripción',
-  barcode: record.code,
-  category: mapCategoryIdToName(record.categoryId),
-  department: mapLocationIdToDepartment(record.locationId),
-  quantity: record.stock,
-  status: mapStatusIdToProductStatus(record.statusId),
-  imageUrl: undefined,
-  cost: undefined,
-  createdAt: undefined,
-  updatedAt: undefined,
-  itemTypeId: record.itemTypeId,
-  normativeType: record.normativeType,
-  origin: record.origin,
-  locationId: record.locationId,
-  custodianId: record.custodianId,
-  availableForLoan: record.availableForLoan,
-  identifier: record.identifier,
-  previousCode: record.previousCode,
-  certificateId: record.certificateId,
-  conditionId: record.conditionId,
-  entryOrigin: record.entryOrigin,
-  entryType: record.entryType,
-  acquisitionDate: record.acquisitionDate,
-  commitmentNumber: record.commitmentNumber,
-  modelCharacteristics: record.modelCharacteristics,
-  brandBreedOther: record.brandBreedOther,
-  identificationSeries: record.identificationSeries,
-  warrantyDate: record.warrantyDate,
-  dimensions: record.dimensions,
-  critical: record.critical,
-  dangerous: record.dangerous,
-  requiresSpecialHandling: record.requiresSpecialHandling,
-  perishable: record.perishable,
-  expirationDate: record.expirationDate,
-  itemLine: record.itemLine,
-  accountingAccount: record.accountingAccount,
-  observations: record.observations,
-  activeCustodian: record.activeCustodian,
-  registrationUserId: record.registrationUserId,
-});
-
-// Mapea un InventoryItem al formato del backend, asegurando que solo se envíen los campos esperados
-const mapInventoryItemToBackend = (item: InventoryItem, originalItem: any): any => {
-  // Campos que el backend espera
-  const updatedFields = {
-    code: item.barcode,
-    stock: item.quantity,
-    name: item.name,
-    description: item.description,
-    itemTypeId: originalItem.itemTypeId,
-    categoryId: mapCategoryToCategoryId(item.category),
-    statusId: mapProductStatusToStatusId(item.status),
-    normativeType: originalItem.normativeType,
-    origin: originalItem.origin,
-    locationId: mapDepartmentToLocationId(item.department),
-    custodianId: originalItem.custodianId,
-    availableForLoan: originalItem.availableForLoan,
-    identifier: originalItem.identifier,
-    previousCode: originalItem.previousCode,
-    certificateId: originalItem.certificateId,
-    conditionId: originalItem.conditionId,
-    entryOrigin: originalItem.entryOrigin,
-    entryType: originalItem.entryType,
-    acquisitionDate: originalItem.acquisitionDate,
-    commitmentNumber: originalItem.commitmentNumber,
-    modelCharacteristics: originalItem.modelCharacteristics,
-    brandBreedOther: originalItem.brandBreedOther,
-    identificationSeries: originalItem.identificationSeries,
-    warrantyDate: originalItem.warrantyDate,
-    dimensions: originalItem.dimensions,
-    critical: originalItem.critical,
-    dangerous: originalItem.dangerous,
-    requiresSpecialHandling: originalItem.requiresSpecialHandling,
-    perishable: originalItem.perishable,
-    expirationDate: originalItem.expirationDate,
-    itemLine: originalItem.itemLine,
-    accountingAccount: originalItem.accountingAccount,
-    observations: originalItem.observations,
-  };
-
-  // Filtra los campos undefined para evitar enviar valores no deseados
-  return Object.fromEntries(
-    Object.entries(updatedFields).filter(([_, value]) => value !== undefined)
-  );
-};
-
-interface InventoryState {
-  items: InventoryItem[];
-  filteredItems: InventoryItem[];
-  viewMode: 'grid' | 'list' | 'table';
-  filters: InventoryFilters;
-  isLoading: boolean;
-  error: string | null;
-  fetchItems: () => Promise<void>;
-  updateItem: (updatedItem: InventoryItem, originalItem: InventoryItem) => Promise<void>;
-  deleteItem: (id: number) => Promise<void>;
-  setViewMode: (mode: 'grid' | 'list' | 'table') => void;
-  setFilters: (filters: InventoryFilters) => void;
-  clearFilters: () => void;
-  applyFilters: () => void;
+interface InventoryFilters {
+    search?: string;
+    categoryId?: string;
+    statusId?: string;
+    itemTypeId?: string;
+    view?: 'table' | 'grid' | 'list';
 }
 
-export const useInventoryStore = create<InventoryState>((set, get) => ({
-  items: [],
-  filteredItems: [],
-  viewMode: 'table',
-  filters: {
-    search: '',
-    category: '',
-    department: '',
-    state: '',
-    sortBy: 'nameAsc',
-  },
-  isLoading: false,
-  error: null,
+interface InventoryState {
+    items: InventoryItem[];
+    selectedItem: InventoryItem | null;
+    loading: boolean;
+    error: string | null;
+    totalPages: number;
+    currentPage: number;
+    isEmpty: boolean;
+    filters: InventoryFilters;
+    getInventoryItems: (page?: number, limit?: number) => Promise<void>;
+    getInventoryItem: (id: string) => Promise<InventoryItem | undefined>;
+    getInventoryItemByCode: (code: string) => Promise<InventoryItem | null>;
+    createInventoryItem: (data: FormData) => Promise<IHttpResponse<InventoryItem>>;
+    updateInventoryItem: (id: string, data: Record<string, any>) => Promise<void>;
+    deleteInventoryItem: (id: string) => Promise<void>;
+    setSelectedItem: (item: InventoryItem | null) => void;
+    setFilters: (filters: Partial<InventoryFilters>) => void;
+    setPage: (page: number) => void;
+    refreshTable: () => Promise<void>;
+}
 
-  fetchItems: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await getInventoryItems();
-      const mappedItems: InventoryItem[] = response.data.records.map(mapBackendItemToInventoryItem);
-      set({ items: mappedItems, filteredItems: mappedItems, isLoading: false });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al cargar los ítems';
-      set({ error: errorMessage, isLoading: false, items: [], filteredItems: [] });
-    }
-  },
+const STORE_NAME = 'inventory-storage';
+const inventoryService = InventoryService.getInstance();
 
-  updateItem: async (updatedItem: InventoryItem, originalItem: InventoryItem) => {
-    set({ isLoading: true, error: null });
-    try {
-      const backendItem = mapInventoryItemToBackend(updatedItem, originalItem);
-      const response = await updateInventoryItem(updatedItem.id, backendItem);
-      const mappedItem = mapBackendItemToInventoryItem(response.data);
-      set((state) => ({
-        items: state.items.map((item) => (item.id === mappedItem.id ? mappedItem : item)),
-        filteredItems: state.filteredItems.map((item) =>
-          item.id === mappedItem.id ? mappedItem : item
-        ),
-        isLoading: false,
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al actualizar el ítem';
-      set({ error: errorMessage, isLoading: false });
-      throw error; // Propagar el error para que el componente lo maneje
-    }
-  },
+export const useInventoryStore = create<InventoryState>()(
+    persist(
+        (set, get) => ({
+            items: [],
+            selectedItem: null,
+            loading: false,
+            error: null,
+            totalPages: 1,
+            currentPage: 1,
+            isEmpty: true,
+            filters: {},
 
-  deleteItem: async (id: number) => {
-    set({ isLoading: true, error: null });
-    try {
-      await deleteInventoryItem(id);
-      set((state) => ({
-        items: state.items.filter((item) => item.id !== id),
-        filteredItems: state.filteredItems.filter((item) => item.id !== id),
-        isLoading: false,
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al eliminar el ítem';
-      set({ error: errorMessage, isLoading: false });
-      throw error; // Propagar el error para que el componente lo maneje
-    }
-  },
+            setPage: (page: number) => {
+                set({ currentPage: page });
+                get().refreshTable();
+            },
 
-  setViewMode: (mode) => set({ viewMode: mode }),
+            setFilters: (newFilters) => {
+                set((state) => ({
+                    filters: { ...state.filters, ...newFilters },
+                    currentPage: 1
+                }));
+                get().refreshTable();
+            },
 
-  setFilters: (filters) => set({ filters }),
+            refreshTable: async () => {
+                const { currentPage, filters } = get();
+                await get().getInventoryItems(currentPage, 10);
+            },
 
-  clearFilters: () => set((state) => ({
-    filters: { search: '', category: '', department: '', state: '', sortBy: 'nameAsc' },
-    filteredItems: state.items,
-  })),
+            getInventoryItems: async (page = 1, limit = 10) => {
+                try {
+                    set({ loading: true, error: null });
+                    const { filters } = get();
 
-  applyFilters: () => {
-    const { items, filters } = get();
-    if (!Array.isArray(items)) {
-      set({ filteredItems: [] });
-      return;
-    }
-    let filtered = [...items];
+                    // Construir query params
+                    const queryParams = new URLSearchParams();
+                    if (filters.search) queryParams.append('name', filters.search);
+                    if (filters.categoryId && filters.categoryId !== 'all') queryParams.append('categoryId', filters.categoryId);
+                    if (filters.statusId && filters.statusId !== 'all') queryParams.append('statusId', filters.statusId);
+                    if (filters.itemTypeId && filters.itemTypeId !== 'all') queryParams.append('itemTypeId', filters.itemTypeId);
 
-    if (filters.search) {
-      filtered = filtered.filter((item) =>
-        item.name.toLowerCase().includes(filters.search?.toLowerCase() || '')
-      );
-    }
+                    const response = await inventoryService.getInventoryItems(page, limit, queryParams.toString());
 
+                    if (response.pages > 0 && page > response.pages) {
+                        await get().getInventoryItems(1, limit);
+                        return;
+                    }
 
-    if (filters.category) {
-      filtered = filtered.filter((item) => item.category === filters.category);
-    }
+                    set({
+                        items: response.records,
+                        currentPage: response.page,
+                        totalPages: response.pages,
+                        isEmpty: response.records.length === 0,
+                        loading: false,
+                        error: response.records.length === 0 ? 'No hay items en el inventario. ¿Deseas crear el primer item?' : null
+                    });
+                } catch (error) {
+                    console.error('Error fetching items:', error);
+                    set({
+                        error: 'Error al cargar los items',
+                        loading: false,
+                        isEmpty: true,
+                        items: [],
+                        currentPage: 1,
+                        totalPages: 1
+                    });
+                }
+            },
 
-    if (filters.department) {
-      filtered = filtered.filter((item) => item.department === filters.department);
-    }
+            getInventoryItem: async (id: string) => {
+                try {
+                    set({ loading: true, error: null });
+                    const item = await inventoryService.getInventoryItemById(id);
+                    if (item) {
+                        set({ selectedItem: item, loading: false });
+                        return item;
+                    } else {
+                        set({ error: 'Item no encontrado', loading: false });
+                        return undefined;
+                    }
+                } catch (error) {
+                    set({ error: 'Error al cargar el item', loading: false });
+                    console.error('Error fetching item:', error);
+                    return undefined;
+                }
+            },
 
-    if (filters.state) {
-      filtered = filtered.filter((item) => item.status === filters.state);
-    }
+            getInventoryItemByCode: async (code: string) => {
+                try {
+                    set({ loading: true, error: null });
+                    const response = await inventoryService.getInventoryItemByCode(code);
+                    set({ loading: false });
+                    return response;
+                } catch (error) {
+                    set({ loading: false, error: 'Error al buscar el item' });
+                    console.error('Error fetching item by code:', error);
+                    return null;
+                }
+            },
 
-    if (filters.sortBy) {
-      filtered.sort((a, b) => {
-        if (filters.sortBy === 'nameAsc') return a.name.localeCompare(b.name);
-        if (filters.sortBy === 'nameDesc') return b.name.localeCompare(a.name);
-        return 0;
-      });
-    }
+            createInventoryItem: async (data: FormData) => {
+                try {
+                    set({ loading: true, error: null });
+                    const response = await inventoryService.createInventoryItem(data);
+                    // Después de crear, volvemos a la primera página
+                    await get().getInventoryItems(1, 10);
+                    set({ loading: false, isEmpty: false });
+                    return response;
+                } catch (error) {
+                    set({ error: 'Error al crear el item', loading: false });
+                    console.error('Error creating item:', error);
+                    throw error;
+                }
+            },
 
-    set({ filteredItems: filtered });
-  },
-}));
+            updateInventoryItem: async (id: string, data: Record<string, any>) => {
+                try {
+                    set({ loading: true, error: null });
+
+                    // Separar las imágenes del resto de los datos
+                    const { images, ...itemData } = data;
+
+                    // Actualizar el item primero
+                    await inventoryService.updateInventoryItem(id, itemData);
+
+                    // Si hay imágenes nuevas, subirlas en una petición separada
+                    if (images && images.length > 0) {
+                        await inventoryService.addMultipleImagesToId(parseInt(id), images);
+                    }
+
+                    // Mantenemos la página actual después de actualizar
+                    await get().refreshTable();
+                } catch (error) {
+                    set({ error: 'Error al actualizar el item', loading: false });
+                    console.error('Error updating item:', error);
+                    throw error;
+                }
+            },
+
+            deleteInventoryItem: async (id: string) => {
+                try {
+                    set({ loading: true, error: null });
+                    await inventoryService.deleteInventoryItem(id);
+
+                    // Verificamos si necesitamos ajustar la página actual
+                    const { currentPage, items } = get();
+                    if (items.length === 1 && currentPage > 1) {
+                        // Si es el último item de la página actual y no es la primera página
+                        await get().getInventoryItems(currentPage - 1, 10);
+                    } else {
+                        // Refrescamos la página actual
+                        await get().refreshTable();
+                    }
+                } catch (error) {
+                    set({ error: 'Error al eliminar el item', loading: false });
+                    console.error('Error deleting item:', error);
+                    throw error;
+                }
+            },
+
+            setSelectedItem: (item: InventoryItem | null) => {
+                set({ selectedItem: item });
+            }
+        }),
+        {
+            name: STORE_NAME,
+            storage: createJSONStorage(() => sessionStorage),
+        }
+    )
+); 

@@ -1,10 +1,16 @@
 'use client';
 
-import React from 'react';
+import { Suspense } from 'react';
 import UserFormView from '@/features/users/presentation/views/user-form-view';
 
-export default function EditUserPage({ params }: { params: { id: string } }) {
-  // Use React.use to unwrap the params object
-  const unwrappedParams = React.use(Promise.resolve(params));
-  return <UserFormView params={{ id: unwrappedParams.id }} />;
+function EditUserContent() {
+  return <UserFormView />;
+}
+
+export default function EditUserPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EditUserContent />
+    </Suspense>
+  );
 }

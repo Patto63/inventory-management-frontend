@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ILocation, PaginatedLocations, ApiResponse } from '../data/interfaces/location.interface';
+import { ILocation, PaginatedLocations } from '../data/interfaces/location.interface';
 import { LocationService } from '../services/location.service';
 
 interface LocationStore {
@@ -12,11 +12,12 @@ interface LocationStore {
         delete: boolean;
     };
     error: string | null;
-    getLocations: (page?: number, limit?: number) => Promise<PaginatedLocations>;
+    getLocations: (page?: number, limit?: number, filters?: { name?: string; description?: string; type?: string; floor?: string; reference?: string }) => Promise<PaginatedLocations>;
     getLocationById: (locationId: number) => Promise<ILocation | undefined>;
-    addLocation: (location: Partial<ILocation>) => Promise<void>;
+    addLocation: (location: Omit<ILocation, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     updateLocation: (locationId: number, location: Partial<ILocation>) => Promise<void>;
     deleteLocation: (locationId: number) => Promise<void>;
+    loading: boolean;
 }
 
 const STORE_NAME = 'location-storage';
@@ -32,12 +33,12 @@ export const useLocationStore = create<LocationStore>()(
                 delete: false
             },
             error: null,
+            loading: false,
 
-            getLocations: async (page = 1, limit = 10) => {
+            getLocations: async (page = 1, limit = 10, filters) => {
                 set(state => ({ isLoading: { ...state.isLoading, fetch: true } }));
                 try {
-                    const response = await LocationService.getInstance().getLocations(page, limit);
-
+                    const response = await LocationService.getInstance().getLocations(page, limit, filters);
                     if (response && response.records) {
                         set({
                             locations: response.records,
@@ -49,7 +50,6 @@ export const useLocationStore = create<LocationStore>()(
                         throw new Error('Invalid response format');
                     }
                 } catch (error) {
-                    console.error('Error in getLocations:', error);
                     set(state => ({
                         error: 'Error al cargar las ubicaciones',
                         isLoading: { ...state.isLoading, fetch: false },
@@ -68,7 +68,7 @@ export const useLocationStore = create<LocationStore>()(
                 }
             },
 
-            addLocation: async (location: Partial<ILocation>) => {
+            addLocation: async (location: Omit<ILocation, 'id' | 'createdAt' | 'updatedAt'>) => {
                 set(state => ({ isLoading: { ...state.isLoading, create: true }, error: null }));
                 try {
                     await LocationService.getInstance().createLocation(location);

@@ -1,16 +1,8 @@
 import { HttpHandler } from '@/core/data/interfaces/HttpHandler';
 import { AxiosClient } from '@/core/infrestucture/AxiosClient';
-import { ILocation, PaginatedLocations, ApiResponse, CreateLocationDTO, UpdateLocationDTO } from '../data/interfaces/location.interface';
+import { ILocation, PaginatedLocations } from '../data/interfaces/location.interface';
 
-interface LocationServiceProps {
-    getLocations: (page?: number, limit?: number) => Promise<PaginatedLocations>;
-    getLocationById: (id: number) => Promise<ILocation | undefined>;
-    createLocation: (location: CreateLocationDTO) => Promise<ILocation | undefined>;
-    updateLocation: (id: number, location: UpdateLocationDTO) => Promise<ILocation | undefined>;
-    deleteLocation: (id: number) => Promise<void>;
-}
-
-export class LocationService implements LocationServiceProps {
+export class LocationService {
     private static instance: LocationService;
     private httpClient: HttpHandler;
     private static readonly url = `${process.env.NEXT_PUBLIC_API_URL}locations`;
@@ -26,10 +18,31 @@ export class LocationService implements LocationServiceProps {
         return LocationService.instance;
     }
 
-    public async getLocations(page = 1, limit = 10): Promise<PaginatedLocations> {
+    async getLocations(page = 1, limit = 10, filters?: { name?: string; description?: string; type?: string; floor?: string; reference?: string }): Promise<PaginatedLocations> {
         try {
-            const response = await this.httpClient.get<ApiResponse<PaginatedLocations>>(
-                `${LocationService.url}?page=${page}&limit=${limit}`
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+            });
+
+            if (filters?.name) {
+                params.append('name', filters.name);
+            }
+            if (filters?.description) {
+                params.append('description', filters.description);
+            }
+            if (filters?.type) {
+                params.append('type', filters.type);
+            }
+            if (filters?.floor) {
+                params.append('floor', filters.floor);
+            }
+            if (filters?.reference) {
+                params.append('reference', filters.reference);
+            }
+
+            const response = await this.httpClient.get<PaginatedLocations>(
+                `${LocationService.url}?${params.toString()}`
             );
             if (response.success) {
                 return response.data;
@@ -41,9 +54,9 @@ export class LocationService implements LocationServiceProps {
         }
     }
 
-    public async getLocationById(id: number): Promise<ILocation | undefined> {
+    async getLocationById(id: number): Promise<ILocation | undefined> {
         try {
-            const response = await this.httpClient.get<ApiResponse<ILocation>>(`${LocationService.url}/${id}`);
+            const response = await this.httpClient.get<ILocation>(`${LocationService.url}/${id}`);
             if (response.success) {
                 return response.data;
             }
@@ -54,9 +67,9 @@ export class LocationService implements LocationServiceProps {
         }
     }
 
-    public async createLocation(location: CreateLocationDTO): Promise<ILocation | undefined> {
+    async createLocation(location: Omit<ILocation, 'id' | 'createdAt' | 'updatedAt'>): Promise<ILocation> {
         try {
-            const response = await this.httpClient.post<ApiResponse<ILocation>>(LocationService.url, location);
+            const response = await this.httpClient.post<ILocation>(LocationService.url, location);
             if (response.success) {
                 return response.data;
             }
@@ -67,9 +80,9 @@ export class LocationService implements LocationServiceProps {
         }
     }
 
-    public async updateLocation(id: number, location: UpdateLocationDTO): Promise<ILocation | undefined> {
+    async updateLocation(id: number, location: Partial<ILocation>): Promise<ILocation> {
         try {
-            const response = await this.httpClient.patch<ApiResponse<ILocation>>(`${LocationService.url}/${id}`, location);
+            const response = await this.httpClient.patch<ILocation>(`${LocationService.url}/${id}`, location);
             if (response.success) {
                 return response.data;
             }
@@ -80,9 +93,9 @@ export class LocationService implements LocationServiceProps {
         }
     }
 
-    public async deleteLocation(id: number): Promise<void> {
+    async deleteLocation(id: number): Promise<void> {
         try {
-            const response = await this.httpClient.delete<ApiResponse<void>>(`${LocationService.url}/${id}`);
+            const response = await this.httpClient.delete<void>(`${LocationService.url}/${id}`);
             if (!response.success) {
                 throw new Error(response.message.content.join(', '));
             }

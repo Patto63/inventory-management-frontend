@@ -1,5 +1,11 @@
-import LoansView from "@/features/loans/presentation/views/loans-view";
+'use client';
+
+import React from 'react'; // Added React import
 
 export default function LoansPage() {
-  return <LoansView />;
+  return (
+    <div>
+      Loans Page
+    </div>
+  );
 }

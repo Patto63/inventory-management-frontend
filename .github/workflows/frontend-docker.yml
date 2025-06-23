@@ -2,7 +2,7 @@ name: CD - Docker Build and Push Frontend
 
 on:
   push:
-    branches: [ main, develop]
+    branches: [main]
 
 jobs:
   build-and-push:

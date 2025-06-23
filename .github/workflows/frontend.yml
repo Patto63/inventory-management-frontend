@@ -8,6 +8,7 @@ on:
 
 jobs:
   build-and-test:
+    name: '🔧 Build & Test - Frontend'
     runs-on: ubuntu-latest
 
     steps:

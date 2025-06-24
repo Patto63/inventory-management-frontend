@@ -12,11 +12,6 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v3
 
-      - name: 📄 Crear archivo .env.production con variables públicas
-        run: |
-          echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env.production
-          echo "NEXT_PUBLIC_API_URLIMAGE=${{ secrets.NEXT_PUBLIC_API_URLIMAGE }}" >> .env.production
-
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -33,3 +28,6 @@ jobs:
           file: Dockerfile.frontend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/gitt-frontend:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_URLIMAGE=${{ secrets.NEXT_PUBLIC_API_URLIMAGE }}

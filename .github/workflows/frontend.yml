@@ -24,7 +24,7 @@ jobs:
       - name: 📦 Install dependencies (legacy peer deps)
         run: npm install --legacy-peer-deps
 
-      #  - name: 💅 Auto format with Prettier
+      #  - name: Auto format with Prettier
       #    run: npm run format:fix
 
       - name: ✅ Lint check (ESLint, non-blocking)
